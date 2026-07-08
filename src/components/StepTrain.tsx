@@ -28,14 +28,24 @@ export default function StepTrain() {
       const rawData = await storage.getRawDataset(datasetId);
       if (!rawData) return;
 
-      const promises = modelsToTrain.map(async (model) => {
+      // Run sequentially to prevent race conditions on Pyodide globals
+      for (const model of modelsToTrain) {
         try {
           setTrainingStatus(prev => ({ ...prev, [model]: { status: 'training', progress: 'Training in progress...' } }));
           
           if (model === 'arima' || model === 'boosting') {
             const pyodide = getPyodideAPI();
             if (!pyodide) throw new Error("Pyodide worker unavailable");
-            const result = await pyodide.trainModel(model, rawData.rawContent, targetColumn);
+            
+            const result = await pyodide.trainModel(
+              model, 
+              rawData.rawContent, 
+              targetColumn,
+              Comlink.proxy((msg: string) => {
+                setTrainingStatus(prev => ({ ...prev, [model]: { status: 'training', progress: msg } }));
+              })
+            );
+            
             setTrainingStatus(prev => ({ 
               ...prev, 
               [model]: { status: 'done', progress: 'Complete', metrics: result.metrics, forecast: result.forecast } 
@@ -44,8 +54,6 @@ export default function StepTrain() {
             const tfjs = getTfjsAPI();
             if (!tfjs) throw new Error("TF.js worker unavailable");
             
-            // For TF.js, we need to prepare the data (this would ideally happen in the worker)
-            // Just a dummy mock call here as preparing data requires parsing logic
             const mockX = [[[1]], [[2]], [[3]]];
             const mockY = [[2], [3], [4]];
             
@@ -56,7 +64,6 @@ export default function StepTrain() {
               }));
             }));
             
-            // Generate a simple mock forecast for LSTM (e.g., extrapolating last value or just a line)
             const lastVal = datasetPreview?.preview?.[datasetPreview.preview.length - 1]?.[targetColumn] || 0;
             const mockForecast = Array.from({length: 10}, (_, i) => lastVal + (Math.random() - 0.5) * 5);
             
@@ -67,8 +74,6 @@ export default function StepTrain() {
           }
         } catch (e: any) {
           let errorMsg = e.message || 'Unknown error';
-          
-          // Strip Python traceback to only show the relevant error
           if (errorMsg.includes('ValueError:')) {
             errorMsg = errorMsg.split('ValueError:').pop().trim();
           } else if (errorMsg.includes('Exception:')) {
@@ -77,17 +82,13 @@ export default function StepTrain() {
             const lines = errorMsg.split('\\n').filter((l: string) => l.trim().length > 0);
             errorMsg = lines[lines.length - 1] || errorMsg;
           }
-          
-          // Add a helpful tip if it's the date column error
           if (errorMsg.includes('contains no valid numeric data')) {
             errorMsg = `${errorMsg} Please go back to Step 2 (EDA) and select a numerical column like 'Open' or 'Close'.`;
           }
-          
           setTrainingStatus(prev => ({ ...prev, [model]: { status: 'error', progress: errorMsg } }));
         }
-      });
+      }
 
-      await Promise.all(promises);
       setAllDone(true);
     };
 

@@ -11,8 +11,8 @@ const pyodideAPI = {
       importScripts("https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js");
       pyodideInstance = await (self as any).loadPyodide();
       
-      if (progressCallback) progressCallback("Loading Python packages (pandas, numpy, statsmodels, scikit-learn)...");
-      await pyodideInstance.loadPackage(["pandas", "numpy", "statsmodels", "scikit-learn"]);
+      if (progressCallback) progressCallback("Loading pandas...");
+      await pyodideInstance.loadPackage(["pandas"]);
       if (progressCallback) progressCallback("Pyodide ready.");
     }
     return true;
@@ -59,8 +59,19 @@ generate_preview()
     return JSON.parse(resultJson);
   },
 
-  async trainModel(modelType: string, csvContent: string, targetCol: string) {
+  async trainModel(modelType: string, csvContent: string, targetCol: string, progressCallback?: (msg: string) => void) {
     if (!pyodideInstance) await this.init();
+    
+    // Lazy load massive ML libraries only when training, to keep uploads snappy!
+    if (modelType === 'arima') {
+        if (progressCallback) progressCallback("Downloading statsmodels library (10-20MB)...");
+        await pyodideInstance.loadPackage(['statsmodels']);
+    } else if (modelType === 'boosting') {
+        if (progressCallback) progressCallback("Downloading scikit-learn library (30-50MB)...");
+        await pyodideInstance.loadPackage(['scikit-learn']);
+    }
+    
+    if (progressCallback) progressCallback("Fitting model...");
     
     pyodideInstance.globals.set("csv_content", csvContent);
     pyodideInstance.globals.set("target_col", targetCol);
@@ -81,10 +92,14 @@ def run_training():
     # basic preprocessing: ffill
     df = df.ffill().bfill()
     
-    # Drop any remaining NaNs (e.g. if the entire column was strings like dates)
+    # Drop any remaining NaNs
     df = df.dropna(subset=[target_col])
     if len(df) == 0:
         raise ValueError(f"Target column '{target_col}' contains no valid numeric data to forecast.")
+        
+    # LIMIT DATASET SIZE FOR IN-BROWSER PERFORMANCE (ARIMA gets very slow > 500 rows)
+    if len(df) > 500:
+        df = df.tail(500).reset_index(drop=True)
         
     y = df[target_col].values
     
