@@ -8,7 +8,7 @@ const pyodideAPI = {
       if (progressCallback) progressCallback("Loading Pyodide runtime...");
       
       // Load Pyodide from CDN to avoid Next.js Webpack module worker issues
-      importScripts("https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js");
+      (self as any).importScripts("https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js");
       pyodideInstance = await (self as any).loadPyodide();
       
       if (progressCallback) progressCallback("Loading pandas...");
