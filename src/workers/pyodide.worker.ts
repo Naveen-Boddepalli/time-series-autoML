@@ -60,18 +60,18 @@ generate_preview()
   },
 
   async trainModel(modelType: string, csvContent: string, targetCol: string, progressCallback?: (msg: string) => void) {
-    if (!pyodideInstance) await this.init();
+    if (!pyodideInstance) await this.init(progressCallback);
     
     // Lazy load massive ML libraries only when training, to keep uploads snappy!
     if (modelType === 'arima') {
-        if (progressCallback) progressCallback("Downloading statsmodels library (10-20MB)...");
+        if (progressCallback) await progressCallback("Downloading statsmodels library (10-20MB)...");
         await pyodideInstance.loadPackage(['statsmodels']);
     } else if (modelType === 'boosting') {
-        if (progressCallback) progressCallback("Downloading scikit-learn library (30-50MB)...");
+        if (progressCallback) await progressCallback("Downloading scikit-learn library (30-50MB)...");
         await pyodideInstance.loadPackage(['scikit-learn']);
     }
     
-    if (progressCallback) progressCallback("Fitting model...");
+    if (progressCallback) await progressCallback("Fitting model...");
     
     pyodideInstance.globals.set("csv_content", csvContent);
     pyodideInstance.globals.set("target_col", targetCol);
@@ -110,7 +110,8 @@ def run_training():
         from statsmodels.tsa.arima.model import ARIMA
         # simple (1,1,1) for speed
         model = ARIMA(y, order=(1,1,1))
-        fitted = model.fit()
+        # Limit maxiter to prevent the WASM thread from hanging infinitely on heavy optimizations
+        fitted = model.fit(maxiter=20)
         preds = fitted.fittedvalues
         forecast = fitted.forecast(steps=10).tolist()
         mse = np.mean((y - preds)**2)
