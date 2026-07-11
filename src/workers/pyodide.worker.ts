@@ -117,8 +117,8 @@ def run_training():
         from statsmodels.tsa.arima.model import ARIMA
         # simple (1,1,1) for speed
         model = ARIMA(y, order=(1,1,1))
-        # Pass maxiter through method_kwargs to prevent WebAssembly from hanging infinitely on heavy optimizations
-        fitted = model.fit(method_kwargs={'maxiter': 20})
+        # Use Nelder-Mead ('nm') optimizer instead of 'lbfgs' to prevent Fortran WASM infinite loops
+        fitted = model.fit(method='nm', method_kwargs={'maxiter': 50})
         preds = fitted.fittedvalues
         forecast = fitted.forecast(steps=10).tolist()
         mse = np.mean((y - preds)**2)
