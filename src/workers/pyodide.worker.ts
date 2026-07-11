@@ -60,18 +60,25 @@ generate_preview()
   },
 
   async trainModel(modelType: string, csvContent: string, targetCol: string, progressCallback?: (msg: string) => void) {
-    if (!pyodideInstance) await this.init(progressCallback);
+    if (!pyodideInstance) {
+        if (progressCallback) progressCallback("Loading Pyodide runtime...");
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await this.init(progressCallback);
+    }
     
     // Lazy load massive ML libraries only when training, to keep uploads snappy!
     if (modelType === 'arima') {
-        if (progressCallback) await progressCallback("Downloading statsmodels library (10-20MB)...");
+        if (progressCallback) progressCallback("Downloading statsmodels library (10-20MB)...");
+        await new Promise(resolve => setTimeout(resolve, 100));
         await pyodideInstance.loadPackage(['statsmodels']);
     } else if (modelType === 'boosting') {
-        if (progressCallback) await progressCallback("Downloading scikit-learn library (30-50MB)...");
+        if (progressCallback) progressCallback("Downloading scikit-learn library (30-50MB)...");
+        await new Promise(resolve => setTimeout(resolve, 100));
         await pyodideInstance.loadPackage(['scikit-learn']);
     }
     
-    if (progressCallback) await progressCallback("Fitting model...");
+    if (progressCallback) progressCallback("Fitting model...");
+    await new Promise(resolve => setTimeout(resolve, 100));
     
     pyodideInstance.globals.set("csv_content", csvContent);
     pyodideInstance.globals.set("target_col", targetCol);
