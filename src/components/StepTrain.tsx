@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { storage } from '../lib/storage';
-import { getPyodideAPI, getTfjsAPI } from '../lib/workerHelper';
+import { getPyodideAPI, getTfjsAPI, resetPyodideWorker } from '../lib/workerHelper';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import * as Comlink from 'comlink';
 
@@ -27,6 +27,9 @@ export default function StepTrain() {
       if (!datasetId || !targetColumn) return;
       const rawData = await storage.getRawDataset(datasetId);
       if (!rawData) return;
+      
+      // Free up Web Worker memory by resetting Pyodide before loading massive ML libraries
+      resetPyodideWorker();
 
       // Run sequentially to prevent race conditions on Pyodide globals
       for (const model of modelsToTrain) {

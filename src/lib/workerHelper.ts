@@ -13,6 +13,13 @@ export const getPyodideAPI = () => {
   return Comlink.wrap<PyodideAPI>(pyodideWorker);
 };
 
+export const resetPyodideWorker = () => {
+  if (pyodideWorker) {
+    pyodideWorker.terminate();
+    pyodideWorker = null;
+  }
+};
+
 export const getTfjsAPI = () => {
   if (typeof window === 'undefined') return null;
   if (!tfjsWorker) {
