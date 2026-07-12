@@ -1,6 +1,23 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Time-Series AutoML Studio
 
-## Getting Started
+A 100% client-side web application for automated machine learning and forecasting on time-series data. 
+
+**Privacy-First**: Your data never leaves your device. All calculations, data parsing, and model training (including heavy Python libraries and deep learning) are executed directly in your browser using Web Workers, WebAssembly (Pyodide), and WebGL/WebGPU (TensorFlow.js).
+
+## Features
+- **Exploratory Data Analysis (EDA)**: Interactive Plotly graphs and data preprocessing (filling missing values, outlier clipping).
+- **Multiple Models**: 
+  - ARIMA (via Statsmodels & Pyodide)
+  - Gradient Boosting (via Scikit-Learn & Pyodide)
+  - LSTM Neural Networks (via TensorFlow.js)
+- **Zero Server Costs**: Because inference and training happen on the client's GPU/CPU, there is zero cloud compute cost.
+
+## Extending the Platform
+Want to add a new model (e.g. Facebook Prophet, Transformers) or expose hyperparameter tuning? 
+
+👉 **[Read the guide on Adding New Models & Parameters](ADDING_MODELS.md)** 👈
+
+## Running Locally
 
 First, run the development server:
 
@@ -15,22 +32,3 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
