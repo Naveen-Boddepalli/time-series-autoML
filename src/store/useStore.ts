@@ -3,10 +3,19 @@ import { persist } from 'zustand/middleware';
 
 export type WizardStep = 'UPLOAD' | 'EDA' | 'MODEL' | 'TRAIN' | 'RESULTS';
 
+export interface DatasetPreview {
+  columns: string[];
+  shape: number[];
+  dtypes: Record<string, string>;
+  preview: any[];
+  correlation_matrix?: Record<string, Record<string, number>>;
+  summary_statistics?: Record<string, Record<string, number>>;
+}
+
 interface AppState {
   currentStep: WizardStep;
   datasetId: string | null;
-  datasetPreview: any | null; // Preview from pandas
+  datasetPreview: DatasetPreview | null; // Preview from pandas
   targetColumn: string | null;
   preprocessing: {
     missingValueStrategy: string;
@@ -16,7 +25,7 @@ interface AppState {
   modelResults: Record<string, { metrics: {rmse: number, mae: number}, forecast: number[] }>;
   
   setStep: (step: WizardStep) => void;
-  setDataset: (id: string, preview: any) => void;
+  setDataset: (id: string, preview: DatasetPreview) => void;
   setEDAOptions: (target: string, missing: string, outliers: string) => void;
   setModelsToTrain: (models: string[]) => void;
   setModelResults: (results: Record<string, { metrics: {rmse: number, mae: number}, forecast: number[] }>) => void;

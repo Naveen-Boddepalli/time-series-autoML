@@ -43,11 +43,23 @@ def generate_preview():
         
         preview_json = preview_df.to_json(orient='records')
         
+        # Only select numeric columns for correlation and stats
+        numeric_df = df.select_dtypes(include=['number'])
+        
+        corr_matrix = {}
+        summary_stats = {}
+        
+        if not numeric_df.empty:
+            corr_matrix = numeric_df.corr().to_dict()
+            summary_stats = numeric_df.describe().to_dict()
+        
         result = {
             "columns": list(df.columns),
             "shape": list(df.shape),
             "dtypes": {k: str(v) for k, v in df.dtypes.items()},
-            "preview": json.loads(preview_json)
+            "preview": json.loads(preview_json),
+            "correlation_matrix": corr_matrix,
+            "summary_statistics": summary_stats
         }
         return json.dumps(result)
     except Exception as e:

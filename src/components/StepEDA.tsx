@@ -20,6 +20,7 @@ export default function StepEDA() {
   const [targetColumn, setTargetColumn] = useState<string>(storeTargetColumn || defaultTarget);
   const [missingValue, setMissingValue] = useState<string>('ffill');
   const [outlier, setOutlier] = useState<string>('none');
+  const [activeTab, setActiveTab] = useState<string>('line');
 
   const handleContinue = () => {
     setEDAOptions(targetColumn, missingValue, outlier);
@@ -30,6 +31,115 @@ export default function StepEDA() {
     x: i,
     y: row[targetColumn]
   }));
+
+  const renderPlot = () => {
+    if (activeTab === 'heatmap') {
+      const corr = datasetPreview?.correlation_matrix || {};
+      const cols = Object.keys(corr);
+      if (cols.length === 0) return <div className="flex items-center justify-center h-full text-gray-500">No numeric columns for correlation</div>;
+      
+      const zValues = cols.map(colY => cols.map(colX => corr[colY][colX]));
+      
+      return (
+        <Plot
+          data={[{
+            z: zValues,
+            x: cols,
+            y: cols,
+            type: 'heatmap',
+            colorscale: 'RdBu',
+            zmin: -1,
+            zmax: 1
+          }]}
+          layout={{
+            autosize: true,
+            margin: { t: 20, r: 20, b: 80, l: 80 },
+            paper_bgcolor: 'transparent',
+            plot_bgcolor: 'transparent',
+          }}
+          style={{width: '100%', height: '100%'}}
+          useResizeHandler={true}
+        />
+      );
+    }
+    
+    if (activeTab === 'histogram') {
+      return (
+        <Plot
+          data={[{
+            x: plotData.map((d: any) => d.y),
+            type: 'histogram',
+            marker: {color: '#3b82f6'},
+            opacity: 0.7
+          }]}
+          layout={{
+            autosize: true,
+            margin: { t: 20, r: 20, b: 50, l: 60 },
+            paper_bgcolor: 'transparent',
+            plot_bgcolor: 'transparent',
+            xaxis: { title: { text: targetColumn || 'Value', font: { size: 14 } } },
+            yaxis: { title: { text: 'Count', font: { size: 14 } } }
+          }}
+          style={{width: '100%', height: '100%'}}
+          useResizeHandler={true}
+        />
+      );
+    }
+    
+    if (activeTab === 'boxplot') {
+      return (
+        <Plot
+          data={[{
+            y: plotData.map((d: any) => d.y),
+            type: 'box',
+            name: targetColumn,
+            marker: {color: '#3b82f6'}
+          }]}
+          layout={{
+            autosize: true,
+            margin: { t: 20, r: 20, b: 50, l: 60 },
+            paper_bgcolor: 'transparent',
+            plot_bgcolor: 'transparent',
+            yaxis: { title: { text: targetColumn || 'Value', font: { size: 14 } } }
+          }}
+          style={{width: '100%', height: '100%'}}
+          useResizeHandler={true}
+        />
+      );
+    }
+
+    // Default: Line Plot
+    return (
+      <Plot
+        data={[
+          {
+            x: plotData.map((d: any) => d.x),
+            y: plotData.map((d: any) => d.y),
+            type: 'scatter',
+            mode: 'lines+markers',
+            marker: {color: '#3b82f6', size: 4},
+            line: {color: '#60a5fa', width: 2}
+          },
+        ]}
+        layout={{
+          autosize: true, 
+          margin: { t: 20, r: 20, b: 50, l: 60 },
+          paper_bgcolor: 'transparent',
+          plot_bgcolor: 'transparent',
+          xaxis: { 
+            gridcolor: '#e2e8f0',
+            title: { text: 'Time Step (Index)', font: { size: 14 } } 
+          },
+          yaxis: { 
+            gridcolor: '#e2e8f0',
+            title: { text: targetColumn || 'Value', font: { size: 14 } }
+          }
+        }}
+        style={{width: '100%', height: '100%'}}
+        useResizeHandler={true}
+      />
+    );
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
@@ -60,41 +170,39 @@ export default function StepEDA() {
         </div>
 
         <div className="mb-10">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Raw Data Preview</h3>
-            <span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-3 py-1 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-700">
-              Showing first 100 rows
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+            <div className="flex flex-wrap gap-2">
+              <button 
+                onClick={() => setActiveTab('line')}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'line' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`}
+              >
+                Line Plot
+              </button>
+              <button 
+                onClick={() => setActiveTab('heatmap')}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'heatmap' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`}
+              >
+                Correlation
+              </button>
+              <button 
+                onClick={() => setActiveTab('histogram')}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'histogram' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`}
+              >
+                Histogram
+              </button>
+              <button 
+                onClick={() => setActiveTab('boxplot')}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'boxplot' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`}
+              >
+                Box Plot
+              </button>
+            </div>
+            <span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-3 py-1 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-700 whitespace-nowrap">
+              {activeTab === 'heatmap' ? 'All numeric columns' : 'Showing first 100 rows'}
             </span>
           </div>
-          <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden h-[300px] bg-gray-50 dark:bg-gray-800/30">
-             <Plot
-              data={[
-                {
-                  x: plotData.map((d: any) => d.x),
-                  y: plotData.map((d: any) => d.y),
-                  type: 'scatter',
-                  mode: 'lines+markers',
-                  marker: {color: '#3b82f6', size: 4},
-                  line: {color: '#60a5fa', width: 2}
-                },
-              ]}
-              layout={{
-                autosize: true, 
-                margin: { t: 20, r: 20, b: 50, l: 60 },
-                paper_bgcolor: 'transparent',
-                plot_bgcolor: 'transparent',
-                xaxis: { 
-                  gridcolor: '#e2e8f0',
-                  title: { text: 'Time Step (Index)', font: { size: 14 } } 
-                },
-                yaxis: { 
-                  gridcolor: '#e2e8f0',
-                  title: { text: targetColumn || 'Value', font: { size: 14 } }
-                }
-              }}
-              style={{width: '100%', height: '100%'}}
-              useResizeHandler={true}
-            />
+          <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden h-[400px] bg-gray-50 dark:bg-gray-800/30">
+            {renderPlot()}
           </div>
         </div>
 
