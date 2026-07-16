@@ -134,7 +134,7 @@ def run_training():
         # simple (1,1,1) for speed
         model = ARIMA(y, order=(1,1,1))
         # Use Nelder-Mead ('nm') optimizer instead of 'lbfgs' to prevent Fortran WASM infinite loops
-        fitted = model.fit(method='nm', method_kwargs={'maxiter': 50})
+        fitted = model.fit(method_kwargs={'method': 'nm', 'maxiter': 50})
         preds = fitted.fittedvalues
         forecast = fitted.forecast(steps=10).tolist()
         mse = np.mean((y - preds)**2)
