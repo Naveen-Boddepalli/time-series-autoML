@@ -71,7 +71,7 @@ generate_preview()
     return JSON.parse(resultJson);
   },
 
-  async trainModel(modelType: string, csvContent: string, targetCol: string, progressCallback?: (msg: string) => void) {
+  async trainModel(modelType: string, csvContent: string, targetCol: string, modelParams: any = {}, progressCallback?: (msg: string) => void) {
     if (!pyodideInstance) {
         if (progressCallback) progressCallback("Loading Pyodide runtime...");
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -83,7 +83,7 @@ generate_preview()
         if (progressCallback) progressCallback("Downloading statsmodels library (10-20MB)...");
         await new Promise(resolve => setTimeout(resolve, 100));
         await pyodideInstance.loadPackage(['statsmodels']);
-    } else if (modelType === 'boosting') {
+    } else if (modelType === 'boosting' || modelType === 'linear' || modelType === 'randomForest') {
         if (progressCallback) progressCallback("Downloading scikit-learn library (30-50MB)...");
         await new Promise(resolve => setTimeout(resolve, 100));
         await pyodideInstance.loadPackage(['scikit-learn']);
@@ -95,6 +95,10 @@ generate_preview()
     pyodideInstance.globals.set("csv_content", csvContent);
     pyodideInstance.globals.set("target_col", targetCol);
     pyodideInstance.globals.set("model_type", modelType);
+    pyodideInstance.globals.set("split_fraction", modelParams.splitFraction || 0.2);
+    pyodideInstance.globals.set("rf_estimators", modelParams.rfEstimators || 100);
+    pyodideInstance.globals.set("rf_max_depth", modelParams.rfMaxDepth || 0);
+    pyodideInstance.globals.set("rf_min_samples_split", modelParams.rfMinSamplesSplit || 2);
     
     const code = `
 import pandas as pd
@@ -146,6 +150,70 @@ def run_training():
         forecast = model.predict(X_future).tolist()
         mse = np.mean((y - preds)**2)
         metrics = {"rmse": float(np.sqrt(mse)), "mae": float(np.mean(np.abs(y - preds)))}
+    elif model_type in ['linear', 'randomForest']:
+        from sklearn.metrics import mean_absolute_error, mean_squared_error
+        
+        df['lag1'] = df[target_col].shift(1)
+        df['lag2'] = df[target_col].shift(2)
+        df['lag3'] = df[target_col].shift(3)
+        df = df.dropna()
+        
+        if len(df) == 0:
+            raise ValueError("Not enough data to create lag features.")
+            
+        X = df.drop(columns=[target_col])
+        X = X.select_dtypes(include=['number'])
+        y = df[target_col]
+        
+        split_idx = int(len(df) * (1 - split_fraction))
+        if split_idx <= 0 or split_idx >= len(df):
+            split_idx = len(df) - 1 # Fallback to 1 element test set if too small
+            
+        X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
+        y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
+        
+        if model_type == 'linear':
+            from sklearn.linear_model import LinearRegression
+            model = LinearRegression()
+        else:
+            from sklearn.ensemble import RandomForestRegressor
+            model = RandomForestRegressor(
+                n_estimators=int(rf_estimators),
+                max_depth=int(rf_max_depth) if rf_max_depth > 0 else None,
+                min_samples_split=int(rf_min_samples_split),
+                random_state=42
+            )
+            
+        model.fit(X_train, y_train)
+        
+        if len(y_test) > 0:
+            preds = model.predict(X_test)
+            MAE = mean_absolute_error(y_test, preds)
+            MSE = mean_squared_error(y_test, preds)
+            metrics = {"rmse": float(np.sqrt(MSE)), "mae": float(MAE)}
+        else:
+            metrics = {"rmse": 0.0, "mae": 0.0}
+            
+        # Forecast 10 steps iteratively
+        last_row = df.iloc[-1].copy()
+        current_y = last_row[target_col]
+        current_lag1 = last_row['lag1']
+        current_lag2 = last_row['lag2']
+        
+        forecast = []
+        for _ in range(10):
+            next_x = last_row.copy()
+            next_x['lag1'] = current_y
+            next_x['lag2'] = current_lag1
+            next_x['lag3'] = current_lag2
+            next_x_df = pd.DataFrame([next_x])[X.columns]
+            
+            pred = model.predict(next_x_df)[0]
+            forecast.append(float(pred))
+            
+            current_lag2 = current_lag1
+            current_lag1 = current_y
+            current_y = pred
     
     return json.dumps({
         "metrics": metrics,

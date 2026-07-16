@@ -8,7 +8,7 @@ import { Loader2, CheckCircle2 } from 'lucide-react';
 import * as Comlink from 'comlink';
 
 export default function StepTrain() {
-  const { datasetId, modelsToTrain, targetColumn, setStep, currentStep, setModelResults, datasetPreview } = useStore();
+  const { datasetId, modelsToTrain, targetColumn, setStep, currentStep, setModelResults, datasetPreview, modelParams } = useStore();
   
   const [trainingStatus, setTrainingStatus] = useState<Record<string, { status: 'pending' | 'training' | 'done' | 'error', progress?: string, metrics?: any, forecast?: number[] }>>({});
   const [allDone, setAllDone] = useState(false);
@@ -36,7 +36,7 @@ export default function StepTrain() {
         try {
           setTrainingStatus(prev => ({ ...prev, [model]: { status: 'training', progress: 'Training in progress...' } }));
           
-          if (model === 'arima' || model === 'boosting') {
+          if (model === 'arima' || model === 'boosting' || model === 'linear' || model === 'randomForest') {
             const pyodide = getPyodideAPI();
             if (!pyodide) throw new Error("Pyodide worker unavailable");
             
@@ -44,6 +44,7 @@ export default function StepTrain() {
               model, 
               rawData.rawContent, 
               targetColumn,
+              modelParams,
               Comlink.proxy((msg: string) => {
                 setTrainingStatus(prev => ({ ...prev, [model]: { status: 'training', progress: msg } }));
               })
@@ -128,7 +129,7 @@ export default function StepTrain() {
                   
                   <div>
                     <h3 className="font-semibold capitalize text-gray-800 dark:text-gray-200">
-                      {model === 'boosting' ? 'Gradient Boosting' : model.toUpperCase()}
+                      {model === 'boosting' ? 'Gradient Boosting' : model === 'randomForest' ? 'Random Forest' : model === 'linear' ? 'Linear Regression' : model.toUpperCase()}
                     </h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">{stat?.progress || 'Waiting...'}</p>
                   </div>

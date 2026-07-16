@@ -4,12 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 
 export default function StepModelConfig() {
-  const { setModelsToTrain, setStep } = useStore();
+  const { setModelsToTrain, setStep, modelParams, setModelParams } = useStore();
   
   const [selectedModels, setSelectedModels] = useState<Record<string, boolean>>({
     arima: true,
     boosting: true,
-    lstm: true
+    lstm: true,
+    linear: false,
+    randomForest: false
   });
   
   const [deviceCapability, setDeviceCapability] = useState('Detecting...');
@@ -91,6 +93,71 @@ export default function StepModelConfig() {
                 <p className="text-sm text-gray-500 dark:text-gray-400">Deep learning model. Computationally intensive but catches complex sequences. Uses WebGL/WebGPU.</p>
               </div>
               <input type="checkbox" checked={selectedModels.lstm} readOnly className="w-5 h-5 text-blue-600 rounded" />
+            </div>
+          </div>
+
+          {/* Linear Regression */}
+          <div 
+            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.linear ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+            onClick={() => handleToggle('linear')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-lg dark:text-white">Linear Regression (Scikit-Learn)</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Simple linear model. Fast, good baseline for simple trends.</p>
+              </div>
+              <input type="checkbox" checked={selectedModels.linear} readOnly className="w-5 h-5 text-blue-600 rounded" />
+            </div>
+          </div>
+
+          {/* Random Forest Regressor */}
+          <div 
+            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.randomForest ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+          >
+            <div className="flex items-center justify-between" onClick={() => handleToggle('randomForest')}>
+              <div>
+                <h3 className="font-semibold text-lg dark:text-white">Random Forest (Scikit-Learn)</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Ensemble learning method. Highly effective for complex non-linear patterns.</p>
+              </div>
+              <input type="checkbox" checked={selectedModels.randomForest} readOnly className="w-5 h-5 text-blue-600 rounded" />
+            </div>
+            
+            {selectedModels.randomForest && (
+              <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-800 space-y-3" onClick={(e) => e.stopPropagation()}>
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Hyperparameters</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">N Estimators</label>
+                    <input type="number" min="10" max="1000" value={modelParams.rfEstimators} onChange={e => setModelParams({ rfEstimators: parseInt(e.target.value) || 100 })} className="w-full text-sm p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Max Depth (0 = None)</label>
+                    <input type="number" min="0" max="100" value={modelParams.rfMaxDepth} onChange={e => setModelParams({ rfMaxDepth: parseInt(e.target.value) || 0 })} className="w-full text-sm p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Min Samples Split</label>
+                    <input type="number" min="2" max="20" value={modelParams.rfMinSamplesSplit} onChange={e => setModelParams({ rfMinSamplesSplit: parseInt(e.target.value) || 2 })} className="w-full text-sm p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white" />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700 mb-8">
+          <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-2">Global Training Settings</h3>
+          <div>
+            <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
+              Train/Test Split Fraction (For Evaluation)
+            </label>
+            <div className="flex items-center space-x-4">
+              <input 
+                type="range" min="0.05" max="0.5" step="0.05" 
+                value={modelParams.splitFraction} 
+                onChange={e => setModelParams({ splitFraction: parseFloat(e.target.value) })}
+                className="w-full max-w-xs"
+              />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">{Math.round(modelParams.splitFraction * 100)}% Test</span>
             </div>
           </div>
         </div>
