@@ -6,6 +6,7 @@ import { storage } from '../lib/storage';
 import { getPyodideAPI, getTfjsAPI, resetPyodideWorker } from '../lib/workerHelper';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import * as Comlink from 'comlink';
+import type { TfjsAPI } from '../workers/tfjs.worker';
 
 const DEEP_MODEL_DISPLAY_NAMES: Record<string, string> = {
   lstm: 'LSTM',
@@ -15,7 +16,7 @@ const DEEP_MODEL_DISPLAY_NAMES: Record<string, string> = {
   transformer: 'Transformer'
 };
 
-const DEEP_MODEL_TRAINERS: Record<string, keyof ReturnType<typeof getTfjsAPI>> = {
+const DEEP_MODEL_TRAINERS: Record<string, keyof TfjsAPI> = {
   lstm: 'trainLSTM',
   gru: 'trainGRU',
   lstmGruHybrid: 'trainLSTMGRUHybrid',
