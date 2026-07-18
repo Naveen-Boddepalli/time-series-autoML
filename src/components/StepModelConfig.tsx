@@ -11,7 +11,11 @@ export default function StepModelConfig() {
     boosting: true,
     lstm: true,
     linear: false,
-    randomForest: false
+    randomForest: false,
+    gru: false,
+    lstmGruHybrid: false,
+    bilstm: false,
+    transformer: false
   });
   
   const [deviceCapability, setDeviceCapability] = useState('Detecting...');
@@ -141,6 +145,62 @@ export default function StepModelConfig() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* GRU */}
+          <div 
+            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.gru ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+            onClick={() => handleToggle('gru')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-lg dark:text-white">GRU (TensorFlow.js)</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Lighter, faster alternative to LSTM with fewer parameters.</p>
+              </div>
+              <input type="checkbox" checked={selectedModels.gru} readOnly className="w-5 h-5 text-blue-600 rounded" />
+            </div>
+          </div>
+
+          {/* LSTM-GRU Hybrid */}
+          <div 
+            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.lstmGruHybrid ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+            onClick={() => handleToggle('lstmGruHybrid')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-lg dark:text-white">LSTM-GRU Hybrid (TensorFlow.js)</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Stacked LSTM + GRU layers. Heavier than either model alone.</p>
+              </div>
+              <input type="checkbox" checked={selectedModels.lstmGruHybrid} readOnly className="w-5 h-5 text-blue-600 rounded" />
+            </div>
+          </div>
+
+          {/* Bi-LSTM */}
+          <div 
+            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.bilstm ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+            onClick={() => handleToggle('bilstm')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-lg dark:text-white">Bi-LSTM (TensorFlow.js)</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Reads the sequence forward and backward for richer context.</p>
+              </div>
+              <input type="checkbox" checked={selectedModels.bilstm} readOnly className="w-5 h-5 text-blue-600 rounded" />
+            </div>
+          </div>
+
+          {/* Transformer */}
+          <div 
+            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.transformer ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+            onClick={() => handleToggle('transformer')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-lg dark:text-white">Transformer (TensorFlow.js)</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Self-attention model. Most computationally intensive option.</p>
+              </div>
+              <input type="checkbox" checked={selectedModels.transformer} readOnly className="w-5 h-5 text-blue-600 rounded" />
+            </div>
           </div>
         </div>
 

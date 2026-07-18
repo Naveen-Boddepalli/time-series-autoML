@@ -7,6 +7,22 @@ import { getPyodideAPI, getTfjsAPI, resetPyodideWorker } from '../lib/workerHelp
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import * as Comlink from 'comlink';
 
+const DEEP_MODEL_DISPLAY_NAMES: Record<string, string> = {
+  lstm: 'LSTM',
+  gru: 'GRU',
+  lstmGruHybrid: 'LSTM-GRU Hybrid',
+  bilstm: 'Bi-LSTM',
+  transformer: 'Transformer'
+};
+
+const DEEP_MODEL_TRAINERS: Record<string, keyof ReturnType<typeof getTfjsAPI>> = {
+  lstm: 'trainLSTM',
+  gru: 'trainGRU',
+  lstmGruHybrid: 'trainLSTMGRUHybrid',
+  bilstm: 'trainBiLSTM',
+  transformer: 'trainTransformer'
+};
+
 export default function StepTrain() {
   const { datasetId, modelsToTrain, targetColumn, setStep, currentStep, setModelResults, datasetPreview, modelParams } = useStore();
   
@@ -54,14 +70,17 @@ export default function StepTrain() {
               ...prev, 
               [model]: { status: 'done', progress: 'Complete', metrics: result.metrics, forecast: result.forecast } 
             }));
-          } else if (model === 'lstm') {
+          } else if (model in DEEP_MODEL_TRAINERS) {
             const tfjs = getTfjsAPI();
             if (!tfjs) throw new Error("TF.js worker unavailable");
             
-            const mockX = [[[1]], [[2]], [[3]]];
+            // Use timesteps=2 to prevent TF.js sequence unrolling bugs when stacking LSTM into GRU
+            const mockX = [[[1], [2]], [[2], [3]], [[3], [4]]];
             const mockY = [[2], [3], [4]];
             
-            await tfjs.trainLSTM(mockX, mockY, 10, 50, Comlink.proxy((epoch: number, logs: any) => {
+            const trainFn = (tfjs as any)[DEEP_MODEL_TRAINERS[model]];
+
+            await trainFn(mockX, mockY, 10, 50, Comlink.proxy((epoch: number, logs: any) => {
               setTrainingStatus(prev => ({ 
                 ...prev, 
                 [model]: { status: 'training', progress: `Epoch ${epoch+1}/10 (Loss: ${logs.loss.toFixed(4)})` } 
@@ -128,8 +147,8 @@ export default function StepTrain() {
                   {stat?.status === 'error' && <div className="w-6 h-6 rounded-full bg-red-500" />}
                   
                   <div>
-                    <h3 className="font-semibold capitalize text-gray-800 dark:text-gray-200">
-                      {model === 'boosting' ? 'Gradient Boosting' : model === 'randomForest' ? 'Random Forest' : model === 'linear' ? 'Linear Regression' : model.toUpperCase()}
+                    <h3 className="font-semibold text-gray-800 dark:text-gray-200">
+                      {DEEP_MODEL_DISPLAY_NAMES[model] || (model === 'boosting' ? 'Gradient Boosting' : model === 'randomForest' ? 'Random Forest' : model === 'linear' ? 'Linear Regression' : model.toUpperCase())}
                     </h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">{stat?.progress || 'Waiting...'}</p>
                   </div>

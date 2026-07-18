@@ -1,21 +1,36 @@
 import * as Comlink from 'comlink';
 
 let pyodideInstance: any = null;
+let initPromise: Promise<boolean> | null = null;
 
 const pyodideAPI = {
   async init(progressCallback?: (msg: string) => void) {
-    if (!pyodideInstance) {
-      if (progressCallback) progressCallback("Loading Pyodide runtime...");
-      
-      // Load Pyodide from CDN to avoid Next.js Webpack module worker issues
-      (self as any).importScripts("https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js");
-      pyodideInstance = await (self as any).loadPyodide();
-      
-      if (progressCallback) progressCallback("Loading pandas...");
-      await pyodideInstance.loadPackage(["pandas"]);
-      if (progressCallback) progressCallback("Pyodide ready.");
+    if (pyodideInstance) return true;
+    
+    if (!initPromise) {
+      initPromise = (async () => {
+        if (progressCallback) progressCallback("Loading Pyodide runtime...");
+        
+        // Load Pyodide from CDN to avoid Next.js Webpack module worker issues
+        (self as any).importScripts("https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js");
+        const instance = await (self as any).loadPyodide();
+        
+        if (progressCallback) progressCallback("Loading pandas...");
+        await instance.loadPackage("pandas");
+        
+        pyodideInstance = instance;
+        if (progressCallback) progressCallback("Pyodide ready.");
+        return true;
+      })();
     }
-    return true;
+    
+    try {
+      await initPromise;
+      return true;
+    } catch (e) {
+      initPromise = null;
+      throw e;
+    }
   },
 
   async runPython(code: string) {
