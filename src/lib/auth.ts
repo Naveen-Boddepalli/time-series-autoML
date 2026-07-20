@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify } from 'jose';
 
-const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
+const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'dummy_secret_for_build_only');
 export const SESSION_COOKIE = 'session';
 
 export async function createSessionToken(payload: { userId: number; email: string }) {
