@@ -10,7 +10,6 @@ export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>('signin');
   const [name, setName] = useState('');
-  const [gender, setGender] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,7 +21,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const endpoint = mode === 'signup' ? '/api/auth/signup' : '/api/auth/login';
-      const body = mode === 'signup' ? { name, gender, email, password } : { email, password };
+      const body = mode === 'signup' ? { name, email, password } : { email, password };
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -75,16 +74,6 @@ export default function LoginPage() {
                     className="w-full pl-9 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white text-sm focus:outline-none focus:border-blue-500"
                     placeholder="Jane Doe" />
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Gender</label>
-                <select value={gender} onChange={(e) => setGender(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white text-sm focus:outline-none focus:border-blue-500">
-                  <option value="">Prefer not to say</option>
-                  <option value="female">Female</option>
-                  <option value="male">Male</option>
-                  <option value="other">Other</option>
-                </select>
               </div>
             </>
           )}

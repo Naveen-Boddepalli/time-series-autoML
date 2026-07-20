@@ -21,26 +21,37 @@ export default function Wizard() {
             Time-Series AutoML Studio
           </h1>
           
-          <nav className="hidden md:flex space-x-2">
-            {steps.map((step, idx) => (
-              <div key={step} className="flex items-center">
-                <button 
-                  onClick={() => useStore.getState().setStep(step as any)}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold tracking-wider transition-colors cursor-pointer hover:opacity-80 ${
-                    currentStep === step 
-                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300' 
-                      : steps.indexOf(currentStep) > idx
-                      ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
-                      : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                  }`}>
-                  {idx + 1}. {step}
-                </button>
-                {idx < steps.length - 1 && (
-                  <div className="w-4 h-px bg-gray-300 dark:bg-gray-700 mx-2" />
-                )}
-              </div>
-            ))}
-          </nav>
+          <div className="flex items-center space-x-6">
+            <nav className="hidden md:flex space-x-2">
+              {steps.map((step, idx) => (
+                <div key={step} className="flex items-center">
+                  <button 
+                    onClick={() => useStore.getState().setStep(step as any)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold tracking-wider transition-colors cursor-pointer hover:opacity-80 ${
+                      currentStep === step 
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300' 
+                        : steps.indexOf(currentStep) > idx
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300'
+                        : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}>
+                    {idx + 1}. {step}
+                  </button>
+                  {idx < steps.length - 1 && (
+                    <div className="w-4 h-px bg-gray-300 dark:bg-gray-700 mx-2" />
+                  )}
+                </div>
+              ))}
+            </nav>
+            <button 
+              onClick={async () => {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.href = '/login';
+              }}
+              className="text-sm font-medium text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
       </header>
 
