@@ -89,7 +89,7 @@ export default function StepTrain() {
             }));
             
             const lastVal = datasetPreview?.preview?.[datasetPreview.preview.length - 1]?.[targetColumn] || 0;
-            const mockForecast = Array.from({length: 10}, (_, i) => lastVal + (Math.random() - 0.5) * 5);
+            const mockForecast = Array.from({length: 10}, () => lastVal + (Math.random() - 0.5) * 5);
             
             setTrainingStatus(prev => ({ 
               ...prev, 
@@ -117,7 +117,7 @@ export default function StepTrain() {
     };
 
     runTraining();
-  }, [currentStep, datasetId, modelsToTrain, targetColumn]);
+  }, [currentStep, datasetId, modelsToTrain, targetColumn, datasetPreview?.preview, modelParams]);
 
   const handleContinue = () => {
     const results: any = {};
