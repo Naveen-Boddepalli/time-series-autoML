@@ -1,5 +1,15 @@
 # Time-Series AutoML Studio
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Framework-Next.js-black?logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/badge/Frontend-React-61DAFB?logo=react&logoColor=black" alt="React" />
+  <img src="https://img.shields.io/badge/Database-Neon-00E599?logo=postgresql&logoColor=black" alt="Neon" />
+  <img src="https://img.shields.io/badge/Styling-Tailwind_CSS-38B2AC?logo=tailwind-css&logoColor=white" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/ML_Engine-TensorFlow.js-FF6F00?logo=tensorflow&logoColor=white" alt="TensorFlow.js" />
+  <img src="https://img.shields.io/badge/WASM-Pyodide-3776AB?logo=python&logoColor=white" alt="Pyodide" />
+  <img src="https://img.shields.io/badge/License-MIT-yellow" alt="License" />
+</p>
+
 A robust, full-stack web application designed for automated machine learning and forecasting on time-series data. 
 
 **Privacy-First & Edge-Powered**: Your data never leaves your device. All calculations, data parsing, and model training (including heavy Python libraries and deep learning) are executed directly in your browser using Web Workers, WebAssembly, and WebGL/WebGPU.
