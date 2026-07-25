@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
 import dynamic from 'next/dynamic';
-import { Target, AlertCircle, Settings2, ChevronDown } from 'lucide-react';
+import { Target, AlertCircle, Settings2, ChevronDown, Image as ImageIcon } from 'lucide-react';
 
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
 
@@ -21,10 +21,23 @@ export default function StepEDA() {
   const [missingValue, setMissingValue] = useState<string>('ffill');
   const [outlier, setOutlier] = useState<string>('none');
   const [activeTab, setActiveTab] = useState<string>('line');
+  const [graphDiv, setGraphDiv] = useState<any>(null);
 
   const handleContinue = () => {
     setEDAOptions(targetColumn, missingValue, outlier);
     setStep('MODEL');
+  };
+
+  const handleDownloadGraph = async () => {
+    if (graphDiv) {
+      try {
+        // @ts-expect-error missing types for plotly.js-dist-min
+        const Plotly = (await import('plotly.js-dist-min')).default || await import('plotly.js-dist-min');
+        Plotly.downloadImage(graphDiv, { format: 'png', filename: `eda_${activeTab}_${targetColumn}` });
+      } catch (err) {
+        console.error('Failed to save graph', err);
+      }
+    }
   };
 
   const plotData = previewData.map((row: any, i: number) => ({
@@ -57,6 +70,12 @@ export default function StepEDA() {
             paper_bgcolor: 'transparent',
             plot_bgcolor: 'transparent',
           }}
+          config={{
+            displayModeBar: true,
+            toImageButtonOptions: { filename: `eda_heatmap_${targetColumn}`, format: 'png', scale: 2 }
+          }}
+          onInitialized={(figure, graphDiv) => setGraphDiv(graphDiv)}
+          onUpdate={(figure, graphDiv) => setGraphDiv(graphDiv)}
           style={{width: '100%', height: '100%'}}
           useResizeHandler={true}
         />
@@ -80,6 +99,12 @@ export default function StepEDA() {
             xaxis: { title: { text: targetColumn || 'Value', font: { size: 14 } } },
             yaxis: { title: { text: 'Count', font: { size: 14 } } }
           }}
+          config={{
+            displayModeBar: true,
+            toImageButtonOptions: { filename: `eda_histogram_${targetColumn}`, format: 'png', scale: 2 }
+          }}
+          onInitialized={(figure, graphDiv) => setGraphDiv(graphDiv)}
+          onUpdate={(figure, graphDiv) => setGraphDiv(graphDiv)}
           style={{width: '100%', height: '100%'}}
           useResizeHandler={true}
         />
@@ -102,6 +127,12 @@ export default function StepEDA() {
             plot_bgcolor: 'transparent',
             yaxis: { title: { text: targetColumn || 'Value', font: { size: 14 } } }
           }}
+          config={{
+            displayModeBar: true,
+            toImageButtonOptions: { filename: `eda_boxplot_${targetColumn}`, format: 'png', scale: 2 }
+          }}
+          onInitialized={(figure, graphDiv) => setGraphDiv(graphDiv)}
+          onUpdate={(figure, graphDiv) => setGraphDiv(graphDiv)}
           style={{width: '100%', height: '100%'}}
           useResizeHandler={true}
         />
@@ -135,6 +166,12 @@ export default function StepEDA() {
             title: { text: targetColumn || 'Value', font: { size: 14 } }
           }
         }}
+        config={{
+          displayModeBar: true,
+          toImageButtonOptions: { filename: `eda_lineplot_${targetColumn}`, format: 'png', scale: 2 }
+        }}
+        onInitialized={(figure, graphDiv) => setGraphDiv(graphDiv)}
+        onUpdate={(figure, graphDiv) => setGraphDiv(graphDiv)}
         style={{width: '100%', height: '100%'}}
         useResizeHandler={true}
       />
@@ -201,8 +238,17 @@ export default function StepEDA() {
               {activeTab === 'heatmap' ? 'All numeric columns' : 'Showing first 100 rows'}
             </span>
           </div>
-          <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden h-[400px] bg-gray-50 dark:bg-gray-800/30">
+          <div id="eda-plot-container" className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden h-[400px] bg-gray-50 dark:bg-gray-800/30">
             {renderPlot()}
+          </div>
+          <div className="flex justify-end mt-4">
+            <button 
+              onClick={handleDownloadGraph}
+              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 transition-colors border border-blue-200 dark:border-blue-800/50"
+            >
+              <ImageIcon className="w-4 h-4" />
+              <span>Save Graph Image</span>
+            </button>
           </div>
         </div>
 

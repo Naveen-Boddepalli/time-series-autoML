@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { Download, RefreshCw, BarChart2 } from 'lucide-react';
+import { Download, RefreshCw, BarChart2, Image as ImageIcon } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
@@ -13,6 +13,7 @@ export default function StepResults() {
   // Available models that completed successfully
   const availableModels = Object.keys(modelResults);
   const [selectedModel, setSelectedModel] = useState<string>(availableModels[0] || '');
+  const [graphDiv, setGraphDiv] = useState<any>(null);
 
   // Extract historical data
   const previewData = datasetPreview?.preview || [];
@@ -47,6 +48,18 @@ export default function StepResults() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  };
+
+  const handleDownloadGraph = async () => {
+    if (graphDiv) {
+      try {
+        // @ts-expect-error missing types for plotly.js-dist-min
+        const Plotly = (await import('plotly.js-dist-min')).default || await import('plotly.js-dist-min');
+        Plotly.downloadImage(graphDiv, { format: 'png', filename: `forecast_${selectedModel}` });
+      } catch (err) {
+        console.error('Failed to save graph', err);
+      }
+    }
   };
 
   const getModelName = (key: string) => {
@@ -103,7 +116,7 @@ export default function StepResults() {
           </div>
         )}
 
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden h-[400px] mb-8 bg-gray-50 dark:bg-gray-800/30">
+        <div id="results-plot-container" className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden h-[400px] mb-8 bg-gray-50 dark:bg-gray-800/30 relative">
           <Plot
               data={[
                 {
@@ -141,9 +154,25 @@ export default function StepResults() {
                   title: { text: targetColumn || 'Target Value', font: { size: 14 } } 
                 }
               }}
+              config={{
+                displayModeBar: true,
+                toImageButtonOptions: { filename: `forecast_${selectedModel}`, format: 'png', scale: 2 }
+              }}
+              onInitialized={(figure, graphDiv) => setGraphDiv(graphDiv)}
+              onUpdate={(figure, graphDiv) => setGraphDiv(graphDiv)}
               style={{width: '100%', height: '100%'}}
               useResizeHandler={true}
             />
+        </div>
+
+        <div className="flex justify-end mb-8">
+            <button 
+              onClick={handleDownloadGraph}
+              className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 transition-colors border border-blue-200 dark:border-blue-800/50"
+            >
+              <ImageIcon className="w-4 h-4" />
+              <span>Save Graph Image</span>
+            </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
