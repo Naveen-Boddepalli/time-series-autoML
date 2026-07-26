@@ -58,6 +58,7 @@ export default function StepResults() {
   const handleDownloadGraph = async () => {
     if (graphDiv) {
       try {
+        // @ts-expect-error missing types for plotly.js-dist-min
         const Plotly = (await import('plotly.js-dist-min')).default || await import('plotly.js-dist-min');
         Plotly.downloadImage(graphDiv, { format: 'png', filename: `forecast_${selectedModel}` });
       } catch (err) {
