@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 
 export default function StepModelConfig() {
-  const { setModelsToTrain, setStep, modelParams, setModelParams } = useStore();
+  const { setModelsToTrain, setStep, modelParams, setModelParams, taskType, setTaskType } = useStore();
   
   const [selectedModels, setSelectedModels] = useState<Record<string, boolean>>({
     arima: true,
@@ -15,7 +15,10 @@ export default function StepModelConfig() {
     gru: false,
     lstmGruHybrid: false,
     bilstm: false,
-    transformer: false
+    transformer: false,
+    logistic: true,
+    lda: true,
+    qda: false
   });
   
   const [deviceCapability, setDeviceCapability] = useState('Detecting...');
@@ -40,7 +43,14 @@ export default function StepModelConfig() {
   };
 
   const handleContinue = () => {
-    const toTrain = Object.keys(selectedModels).filter(k => selectedModels[k]);
+    let validKeys: string[] = [];
+    if (taskType === 'regression') {
+      validKeys = ['arima', 'boosting', 'lstm', 'linear', 'randomForest', 'gru', 'lstmGruHybrid', 'bilstm', 'transformer'];
+    } else {
+      validKeys = ['logistic', 'lda', 'qda'];
+    }
+    
+    const toTrain = Object.keys(selectedModels).filter(k => selectedModels[k] && validKeys.includes(k));
     if (toTrain.length === 0) {
       alert("Please select at least one model to train.");
       return;
@@ -57,151 +67,224 @@ export default function StepModelConfig() {
           All models will train locally on your device. {deviceCapability}
         </p>
 
+        <div className="flex gap-4 mb-8">
+          <button
+            onClick={() => setTaskType('regression')}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium border-2 transition-colors ${
+              taskType === 'regression' 
+                ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/20 dark:border-blue-500 dark:text-blue-300' 
+                : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400'
+            }`}
+          >
+            Time-Series Regression
+          </button>
+          <button
+            onClick={() => setTaskType('classification')}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium border-2 transition-colors ${
+              taskType === 'classification' 
+                ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-900/20 dark:border-blue-500 dark:text-blue-300' 
+                : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400'
+            }`}
+          >
+            Classification
+          </button>
+        </div>
+
         <div className="space-y-4 mb-8">
-          {/* ARIMA */}
-          <div 
-            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.arima ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
-            onClick={() => handleToggle('arima')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-lg dark:text-white">ARIMA (Statsmodels)</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Classical statistical method. Fast and reliable for simple trends.</p>
-              </div>
-              <input type="checkbox" checked={selectedModels.arima} readOnly className="w-5 h-5 text-blue-600 rounded" />
-            </div>
-          </div>
-
-          {/* Boosting */}
-          <div 
-            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.boosting ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
-            onClick={() => handleToggle('boosting')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-lg dark:text-white">Gradient Boosting (Scikit-Learn)</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Machine learning approach (XGBoost alternative). Good for non-linear patterns.</p>
-              </div>
-              <input type="checkbox" checked={selectedModels.boosting} readOnly className="w-5 h-5 text-blue-600 rounded" />
-            </div>
-          </div>
-
-          {/* LSTM */}
-          <div 
-            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.lstm ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
-            onClick={() => handleToggle('lstm')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-lg dark:text-white">LSTM (TensorFlow.js)</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Deep learning model. Computationally intensive but catches complex sequences. Uses WebGL/WebGPU.</p>
-              </div>
-              <input type="checkbox" checked={selectedModels.lstm} readOnly className="w-5 h-5 text-blue-600 rounded" />
-            </div>
-          </div>
-
-          {/* Linear Regression */}
-          <div 
-            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.linear ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
-            onClick={() => handleToggle('linear')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-lg dark:text-white">Linear Regression (Scikit-Learn)</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Simple linear model. Fast, good baseline for simple trends.</p>
-              </div>
-              <input type="checkbox" checked={selectedModels.linear} readOnly className="w-5 h-5 text-blue-600 rounded" />
-            </div>
-          </div>
-
-          {/* Random Forest Regressor */}
-          <div 
-            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.randomForest ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
-          >
-            <div className="flex items-center justify-between" onClick={() => handleToggle('randomForest')}>
-              <div>
-                <h3 className="font-semibold text-lg dark:text-white">Random Forest (Scikit-Learn)</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Ensemble learning method. Highly effective for complex non-linear patterns.</p>
-              </div>
-              <input type="checkbox" checked={selectedModels.randomForest} readOnly className="w-5 h-5 text-blue-600 rounded" />
-            </div>
-            
-            {selectedModels.randomForest && (
-              <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-800 space-y-3" onClick={(e) => e.stopPropagation()}>
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Hyperparameters</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {taskType === 'regression' && (
+            <>
+              {/* ARIMA */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.arima ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+                onClick={() => handleToggle('arima')}
+              >
+                <div className="flex items-center justify-between">
                   <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">N Estimators</label>
-                    <input type="number" min="10" max="1000" value={modelParams.rfEstimators} onChange={e => setModelParams({ rfEstimators: parseInt(e.target.value) || 100 })} className="w-full text-sm p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white" />
+                    <h3 className="font-semibold text-lg dark:text-white">ARIMA (Statsmodels)</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Classical statistical method. Fast and reliable for simple trends.</p>
                   </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Max Depth (0 = None)</label>
-                    <input type="number" min="0" max="100" value={modelParams.rfMaxDepth} onChange={e => setModelParams({ rfMaxDepth: parseInt(e.target.value) || 0 })} className="w-full text-sm p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Min Samples Split</label>
-                    <input type="number" min="2" max="20" value={modelParams.rfMinSamplesSplit} onChange={e => setModelParams({ rfMinSamplesSplit: parseInt(e.target.value) || 2 })} className="w-full text-sm p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white" />
-                  </div>
+                  <input type="checkbox" checked={selectedModels.arima} readOnly className="w-5 h-5 text-blue-600 rounded" />
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* GRU */}
-          <div 
-            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.gru ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
-            onClick={() => handleToggle('gru')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-lg dark:text-white">GRU (TensorFlow.js)</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Lighter, faster alternative to LSTM with fewer parameters.</p>
+              {/* Boosting */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.boosting ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+                onClick={() => handleToggle('boosting')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-lg dark:text-white">Gradient Boosting (Scikit-Learn)</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Machine learning approach (XGBoost alternative). Good for non-linear patterns.</p>
+                  </div>
+                  <input type="checkbox" checked={selectedModels.boosting} readOnly className="w-5 h-5 text-blue-600 rounded" />
+                </div>
               </div>
-              <input type="checkbox" checked={selectedModels.gru} readOnly className="w-5 h-5 text-blue-600 rounded" />
-            </div>
-          </div>
 
-          {/* LSTM-GRU Hybrid */}
-          <div 
-            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.lstmGruHybrid ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
-            onClick={() => handleToggle('lstmGruHybrid')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-lg dark:text-white">LSTM-GRU Hybrid (TensorFlow.js)</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Stacked LSTM + GRU layers. Heavier than either model alone.</p>
+              {/* LSTM */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.lstm ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+                onClick={() => handleToggle('lstm')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-lg dark:text-white">LSTM (TensorFlow.js)</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Deep learning model. Computationally intensive but catches complex sequences. Uses WebGL/WebGPU.</p>
+                  </div>
+                  <input type="checkbox" checked={selectedModels.lstm} readOnly className="w-5 h-5 text-blue-600 rounded" />
+                </div>
               </div>
-              <input type="checkbox" checked={selectedModels.lstmGruHybrid} readOnly className="w-5 h-5 text-blue-600 rounded" />
-            </div>
-          </div>
 
-          {/* Bi-LSTM */}
-          <div 
-            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.bilstm ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
-            onClick={() => handleToggle('bilstm')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-lg dark:text-white">Bi-LSTM (TensorFlow.js)</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Reads the sequence forward and backward for richer context.</p>
+              {/* Linear Regression */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.linear ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+                onClick={() => handleToggle('linear')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-lg dark:text-white">Linear Regression (Scikit-Learn)</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Simple linear model. Fast, good baseline for simple trends.</p>
+                  </div>
+                  <input type="checkbox" checked={selectedModels.linear} readOnly className="w-5 h-5 text-blue-600 rounded" />
+                </div>
               </div>
-              <input type="checkbox" checked={selectedModels.bilstm} readOnly className="w-5 h-5 text-blue-600 rounded" />
-            </div>
-          </div>
 
-          {/* Transformer */}
-          <div 
-            className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.transformer ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
-            onClick={() => handleToggle('transformer')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-lg dark:text-white">Transformer (TensorFlow.js)</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Self-attention model. Most computationally intensive option.</p>
+              {/* Random Forest Regressor */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.randomForest ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+              >
+                <div className="flex items-center justify-between" onClick={() => handleToggle('randomForest')}>
+                  <div>
+                    <h3 className="font-semibold text-lg dark:text-white">Random Forest (Scikit-Learn)</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Ensemble learning method. Highly effective for complex non-linear patterns.</p>
+                  </div>
+                  <input type="checkbox" checked={selectedModels.randomForest} readOnly className="w-5 h-5 text-blue-600 rounded" />
+                </div>
+                
+                {selectedModels.randomForest && (
+                  <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-800 space-y-3" onClick={(e) => e.stopPropagation()}>
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Hyperparameters</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">N Estimators</label>
+                        <input type="number" min="10" max="1000" value={modelParams.rfEstimators} onChange={e => setModelParams({ rfEstimators: parseInt(e.target.value) || 100 })} className="w-full text-sm p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Max Depth (0 = None)</label>
+                        <input type="number" min="0" max="100" value={modelParams.rfMaxDepth} onChange={e => setModelParams({ rfMaxDepth: parseInt(e.target.value) || 0 })} className="w-full text-sm p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Min Samples Split</label>
+                        <input type="number" min="2" max="20" value={modelParams.rfMinSamplesSplit} onChange={e => setModelParams({ rfMinSamplesSplit: parseInt(e.target.value) || 2 })} className="w-full text-sm p-2 border rounded dark:bg-gray-800 dark:border-gray-700 dark:text-white" />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-              <input type="checkbox" checked={selectedModels.transformer} readOnly className="w-5 h-5 text-blue-600 rounded" />
-            </div>
-          </div>
+
+              {/* GRU */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.gru ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+                onClick={() => handleToggle('gru')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-lg dark:text-white">GRU (TensorFlow.js)</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Lighter, faster alternative to LSTM with fewer parameters.</p>
+                  </div>
+                  <input type="checkbox" checked={selectedModels.gru} readOnly className="w-5 h-5 text-blue-600 rounded" />
+                </div>
+              </div>
+
+              {/* LSTM-GRU Hybrid */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.lstmGruHybrid ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+                onClick={() => handleToggle('lstmGruHybrid')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-lg dark:text-white">LSTM-GRU Hybrid (TensorFlow.js)</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Stacked LSTM + GRU layers. Heavier than either model alone.</p>
+                  </div>
+                  <input type="checkbox" checked={selectedModels.lstmGruHybrid} readOnly className="w-5 h-5 text-blue-600 rounded" />
+                </div>
+              </div>
+
+              {/* Bi-LSTM */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.bilstm ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+                onClick={() => handleToggle('bilstm')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-lg dark:text-white">Bi-LSTM (TensorFlow.js)</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Reads the sequence forward and backward for richer context.</p>
+                  </div>
+                  <input type="checkbox" checked={selectedModels.bilstm} readOnly className="w-5 h-5 text-blue-600 rounded" />
+                </div>
+              </div>
+
+              {/* Transformer */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.transformer ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+                onClick={() => handleToggle('transformer')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-lg dark:text-white">Transformer (TensorFlow.js)</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Self-attention model. Most computationally intensive option.</p>
+                  </div>
+                  <input type="checkbox" checked={selectedModels.transformer} readOnly className="w-5 h-5 text-blue-600 rounded" />
+                </div>
+              </div>
+            </>
+          )}
+
+          {taskType === 'classification' && (
+            <>
+              {/* Logistic Regression */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.logistic ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+                onClick={() => handleToggle('logistic')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-lg dark:text-white">Logistic Regression</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Standard multinomial logistic classification.</p>
+                  </div>
+                  <input type="checkbox" checked={selectedModels.logistic} readOnly className="w-5 h-5 text-blue-600 rounded" />
+                </div>
+              </div>
+
+              {/* Linear Discriminant Analysis */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.lda ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+                onClick={() => handleToggle('lda')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-lg dark:text-white">Linear Discriminant Analysis (LDA)</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Classification method using linear combinations of features.</p>
+                  </div>
+                  <input type="checkbox" checked={selectedModels.lda} readOnly className="w-5 h-5 text-blue-600 rounded" />
+                </div>
+              </div>
+
+              {/* Quadratic Discriminant Analysis */}
+              <div 
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${selectedModels.qda ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}
+                onClick={() => handleToggle('qda')}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-lg dark:text-white">Quadratic Discriminant Analysis (QDA)</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">More flexible discriminant analysis allowing quadratic boundaries.</p>
+                  </div>
+                  <input type="checkbox" checked={selectedModels.qda} readOnly className="w-5 h-5 text-blue-600 rounded" />
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700 mb-8">

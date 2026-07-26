@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { storage } from '../lib/storage';
 import { getPyodideAPI, getTfjsAPI, resetPyodideWorker } from '../lib/workerHelper';
@@ -29,9 +29,16 @@ export default function StepTrain() {
   
   const [trainingStatus, setTrainingStatus] = useState<Record<string, { status: 'pending' | 'training' | 'done' | 'error', progress?: string, metrics?: any, forecast?: number[] }>>({});
   const [allDone, setAllDone] = useState(false);
+  const hasRun = useRef(false);
 
   useEffect(() => {
-    if (currentStep !== 'TRAIN') return;
+    if (currentStep !== 'TRAIN') {
+      hasRun.current = false;
+      return;
+    }
+    
+    if (hasRun.current) return;
+    hasRun.current = true;
 
     // Initialize state
     const initStatus: any = {};
@@ -53,7 +60,9 @@ export default function StepTrain() {
         try {
           setTrainingStatus(prev => ({ ...prev, [model]: { status: 'training', progress: 'Training in progress...' } }));
           
-          if (model === 'arima' || model === 'boosting' || model === 'linear' || model === 'randomForest') {
+          const pyodideModels = ['arima', 'boosting', 'linear', 'randomForest', 'logistic', 'lda', 'qda'];
+          
+          if (pyodideModels.includes(model)) {
             const pyodide = getPyodideAPI();
             if (!pyodide) throw new Error("Pyodide worker unavailable");
             
@@ -69,7 +78,13 @@ export default function StepTrain() {
             
             setTrainingStatus(prev => ({ 
               ...prev, 
-              [model]: { status: 'done', progress: 'Complete', metrics: result.metrics, forecast: result.forecast } 
+              [model]: { 
+                status: 'done', 
+                progress: 'Complete', 
+                metrics: result.metrics, 
+                forecast: result.forecast,
+                classKeyMap: result.classKeyMap
+              } 
             }));
           } else if (model in DEEP_MODEL_TRAINERS) {
             const tfjs = getTfjsAPI();
@@ -122,9 +137,13 @@ export default function StepTrain() {
   const handleContinue = () => {
     const results: any = {};
     Object.keys(trainingStatus).forEach(m => {
-      const stat = trainingStatus[m];
-      if (stat.status === 'done' && stat.metrics && stat.forecast) {
-        results[m] = { metrics: stat.metrics, forecast: stat.forecast };
+      const stat = trainingStatus[m] as any;
+      if (stat.status === 'done' && stat.metrics) {
+        results[m] = { 
+          metrics: stat.metrics, 
+          forecast: stat.forecast || [],
+          classKeyMap: stat.classKeyMap 
+        };
       }
     });
     setModelResults(results);
@@ -157,8 +176,17 @@ export default function StepTrain() {
                 
                 {stat?.metrics && (
                   <div className="text-right">
-                    <div className="text-xs text-gray-500">RMSE</div>
-                    <div className="font-mono font-medium dark:text-white">{stat.metrics.rmse.toFixed(3)}</div>
+                    {stat.metrics.rmse !== undefined ? (
+                      <>
+                        <div className="text-xs text-gray-500">RMSE</div>
+                        <div className="font-mono font-medium dark:text-white">{stat.metrics.rmse.toFixed(3)}</div>
+                      </>
+                    ) : stat.metrics.accuracy !== undefined ? (
+                      <>
+                        <div className="text-xs text-gray-500">Accuracy</div>
+                        <div className="font-mono font-medium dark:text-white">{(stat.metrics.accuracy * 100).toFixed(1)}%</div>
+                      </>
+                    ) : null}
                   </div>
                 )}
               </div>

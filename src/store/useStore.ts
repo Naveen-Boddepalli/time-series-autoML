@@ -21,8 +21,9 @@ interface AppState {
     missingValueStrategy: string;
     outlierStrategy: string;
   };
+  taskType: 'regression' | 'classification';
   modelsToTrain: string[];
-  modelResults: Record<string, { metrics: {rmse: number, mae: number}, forecast: number[] }>;
+  modelResults: Record<string, { metrics: any, forecast?: number[], classKeyMap?: Record<string, string> }>;
   modelParams: {
     splitFraction: number;
     rfEstimators: number;
@@ -34,8 +35,9 @@ interface AppState {
   setDataset: (id: string, preview: DatasetPreview) => void;
   setEDAOptions: (target: string, missing: string, outliers: string) => void;
   setModelsToTrain: (models: string[]) => void;
-  setModelResults: (results: Record<string, { metrics: {rmse: number, mae: number}, forecast: number[] }>) => void;
+  setModelResults: (results: Record<string, { metrics: any, forecast?: number[], classKeyMap?: Record<string, string> }>) => void;
   setModelParams: (params: Partial<AppState['modelParams']>) => void;
+  setTaskType: (type: 'regression' | 'classification') => void;
   reset: () => void;
 }
 
@@ -50,6 +52,7 @@ export const useStore = create<AppState>()(
         missingValueStrategy: 'ffill',
         outlierStrategy: 'none'
       },
+      taskType: 'regression',
       modelsToTrain: [],
       modelResults: {},
       modelParams: {
@@ -60,11 +63,12 @@ export const useStore = create<AppState>()(
       },
       
       setStep: (step) => set({ currentStep: step }),
-      setDataset: (id, preview) => set({ datasetId: id, datasetPreview: preview }),
+      setDataset: (id, preview) => set({ datasetId: id, datasetPreview: preview, targetColumn: null }),
       setEDAOptions: (target, missing, outliers) => set({
         targetColumn: target,
         preprocessing: { missingValueStrategy: missing, outlierStrategy: outliers }
       }),
+      setTaskType: (type: 'regression' | 'classification') => set({ taskType: type }),
       setModelsToTrain: (models) => set({ modelsToTrain: models }),
       setModelResults: (results) => set({ modelResults: results }),
       setModelParams: (params) => set((state) => ({ modelParams: { ...state.modelParams, ...params } })),
@@ -77,6 +81,7 @@ export const useStore = create<AppState>()(
           missingValueStrategy: 'ffill',
           outlierStrategy: 'none'
         },
+        taskType: 'regression',
         modelsToTrain: [],
         modelResults: {},
         modelParams: {
