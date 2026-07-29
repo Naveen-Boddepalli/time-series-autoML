@@ -24,6 +24,36 @@ const DEEP_MODEL_TRAINERS: Record<string, keyof TfjsAPI> = {
   transformer: 'trainTransformer'
 };
 
+function extractNumericColumn(csvString: string, targetCol: string): number[] {
+  const lines = csvString.trim().split('\n');
+  if (lines.length < 2) return [];
+  
+  const header = lines[0].split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+  const colIndex = header.indexOf(targetCol);
+  if (colIndex === -1) return [];
+  
+  const values: number[] = [];
+  let lastValid = 0;
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const cols = line.split(','); 
+    if (cols.length > colIndex) {
+      let valStr = cols[colIndex].trim().replace(/^"|"$/g, '');
+      let val = parseFloat(valStr);
+      if (!isNaN(val)) {
+        values.push(val);
+        lastValid = val;
+      } else if (values.length > 0) {
+        // Forward fill
+        values.push(lastValid);
+      }
+    }
+  }
+  return values;
+}
+
+
 export default function StepTrain() {
   const { datasetId, modelsToTrain, targetColumn, setStep, currentStep, setModelResults, datasetPreview, modelParams } = useStore();
   
@@ -75,25 +105,21 @@ export default function StepTrain() {
             const tfjs = getTfjsAPI();
             if (!tfjs) throw new Error("TF.js worker unavailable");
             
-            // Use timesteps=2 to prevent TF.js sequence unrolling bugs when stacking LSTM into GRU
-            const mockX = [[[1], [2]], [[2], [3]], [[3], [4]]];
-            const mockY = [[2], [3], [4]];
+            const timeSeriesData = extractNumericColumn(rawData.rawContent, targetColumn);
+            if (timeSeriesData.length === 0) throw new Error("Could not extract numeric data for target column.");
             
             const trainFn = (tfjs as any)[DEEP_MODEL_TRAINERS[model]];
 
-            await trainFn(mockX, mockY, 10, 50, Comlink.proxy((epoch: number, logs: any) => {
+            const result = await trainFn(timeSeriesData, 10, 50, Comlink.proxy((epoch: number, logs: any) => {
               setTrainingStatus(prev => ({ 
                 ...prev, 
                 [model]: { status: 'training', progress: `Epoch ${epoch+1}/10 (Loss: ${logs.loss.toFixed(4)})` } 
               }));
             }));
             
-            const lastVal = datasetPreview?.preview?.[datasetPreview.preview.length - 1]?.[targetColumn] || 0;
-            const mockForecast = Array.from({length: 10}, () => lastVal + (Math.random() - 0.5) * 5);
-            
             setTrainingStatus(prev => ({ 
               ...prev, 
-              [model]: { status: 'done', progress: 'Complete', metrics: { rmse: Math.random() * 5, mae: Math.random() * 3 }, forecast: mockForecast } 
+              [model]: { status: 'done', progress: 'Complete', metrics: result.metrics, forecast: result.forecast } 
             }));
           }
         } catch (e: any) {

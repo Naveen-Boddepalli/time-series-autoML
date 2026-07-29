@@ -7,6 +7,101 @@ import '@tensorflow/tfjs-backend-webgl';
 let isInitialized = false;
 let initPromise: Promise<boolean> | null = null;
 
+function prepareTimeSeriesData(data: number[], timesteps: number = 10, maxRows: number = 300) {
+  // Truncate
+  const recentData = data.slice(-maxRows);
+  
+  // Min-max scale
+  const min = Math.min(...recentData);
+  const max = Math.max(...recentData);
+  const range = (max - min) || 1;
+  const scaledData = recentData.map(v => (v - min) / range);
+  
+  const X: number[][][] = [];
+  const y: number[][] = [];
+  
+  for (let i = 0; i < scaledData.length - timesteps; i++) {
+    const window = scaledData.slice(i, i + timesteps).map(v => [v]);
+    X.push(window);
+    y.push([scaledData[i + timesteps]]);
+  }
+  
+  // 80/20 train/test split
+  const splitIdx = Math.floor(X.length * 0.8);
+  
+  return {
+    X_train: X.slice(0, splitIdx),
+    y_train: y.slice(0, splitIdx),
+    X_test: X.slice(splitIdx),
+    y_test: y.slice(splitIdx),
+    min,
+    range,
+    scaledData,
+    timesteps
+  };
+}
+
+async function evaluateAndForecast(
+  model: tf.LayersModel | tf.Sequential,
+  X_test: number[][][],
+  y_test: number[][],
+  scaledData: number[],
+  min: number,
+  range: number,
+  timesteps: number
+) {
+  // 1. Evaluate on test set
+  let rmse = 0;
+  let mae = 0;
+  
+  if (X_test.length > 0) {
+    const xs = tf.tensor3d(X_test);
+    const preds = model.predict(xs) as tf.Tensor;
+    const predsArray = await preds.array() as number[][];
+    
+    let sumSqErr = 0;
+    let sumAbsErr = 0;
+    
+    for (let i = 0; i < predsArray.length; i++) {
+      const predUnscaled = (predsArray[i][0] * range) + min;
+      const trueUnscaled = (y_test[i][0] * range) + min;
+      
+      const err = trueUnscaled - predUnscaled;
+      sumSqErr += err * err;
+      sumAbsErr += Math.abs(err);
+    }
+    
+    rmse = Math.sqrt(sumSqErr / predsArray.length);
+    mae = sumAbsErr / predsArray.length;
+    
+    xs.dispose();
+    preds.dispose();
+  }
+  
+  // 2. Iterative forecast for 10 steps
+  const forecast: number[] = [];
+  const currentWindow = scaledData.slice(-timesteps).map(v => [v]);
+  
+  for (let i = 0; i < 10; i++) {
+    const xs = tf.tensor3d([currentWindow]);
+    const pred = model.predict(xs) as tf.Tensor;
+    const predArray = await pred.array() as number[][];
+    const scaledPred = predArray[0][0];
+    
+    forecast.push((scaledPred * range) + min);
+    
+    // Slide window
+    currentWindow.push([scaledPred]);
+    currentWindow.shift();
+    
+    xs.dispose();
+    pred.dispose();
+  }
+  
+  return { metrics: { rmse, mae }, forecast };
+}
+
+
 const tfjsAPI = {
   async init(progressCallback?: (msg: string) => void) {
     if (isInitialized) return true;
@@ -40,24 +135,19 @@ const tfjsAPI = {
   },
 
   async trainLSTM(
-    X_train: number[][][], 
-    y_train: number[][],
+    data: number[],
     epochs: number = 10,
     units: number = 50,
     progressCallback?: (epoch: number, logs: any) => void
   ) {
     await this.init();
     
-    // Create simple LSTM model
+    const { X_train, y_train, X_test, y_test, min, range, scaledData, timesteps } = prepareTimeSeriesData(data, 10, 300);
+    
     const model = tf.sequential();
-    
-    // Assumes input shape [timesteps, features]
-    const timesteps = X_train[0].length;
-    const features = X_train[0][0].length;
-    
     model.add(tf.layers.lstm({
       units: units,
-      inputShape: [timesteps, features],
+      inputShape: [timesteps, 1],
       returnSequences: false
     }));
     model.add(tf.layers.dense({ units: 1 }));
@@ -81,6 +171,8 @@ const tfjsAPI = {
       }
     });
     
+    const { metrics, forecast } = await evaluateAndForecast(model, X_test, y_test, scaledData, min, range, timesteps);
+
     // Save model to indexedDB
     const modelName = 'lstm-model-' + Date.now();
     await model.save('indexeddb://' + modelName);
@@ -90,7 +182,9 @@ const tfjsAPI = {
     ys.dispose();
     
     return {
-      modelName: modelName
+      modelName: modelName,
+      metrics,
+      forecast
     };
   },
   
@@ -109,21 +203,19 @@ const tfjsAPI = {
   },
 
 async trainGRU(
-  X_train: number[][][],
-  y_train: number[][],
+  data: number[],
   epochs: number = 10,
   units: number = 50,
   progressCallback?: (epoch: number, logs: any) => void
 ) {
   await this.init();
 
-  const model = tf.sequential();
-  const timesteps = X_train[0].length;
-  const features = X_train[0][0].length;
+  const { X_train, y_train, X_test, y_test, min, range, scaledData, timesteps } = prepareTimeSeriesData(data, 10, 300);
 
+  const model = tf.sequential();
   model.add(tf.layers.gru({
     units: units,
-    inputShape: [timesteps, features],
+    inputShape: [timesteps, 1],
     returnSequences: false
   }));
   model.add(tf.layers.dense({ units: 1 }));
@@ -142,13 +234,15 @@ async trainGRU(
     }
   });
 
+  const { metrics, forecast } = await evaluateAndForecast(model, X_test, y_test, scaledData, min, range, timesteps);
+
   const modelName = 'gru-model-' + Date.now();
   await model.save('indexeddb://' + modelName);
 
   xs.dispose();
   ys.dispose();
 
-  return { modelName };
+  return { modelName, metrics, forecast };
 },
 
 async predictGRU(modelName: string, X_test: number[][][]) {
@@ -163,22 +257,20 @@ async predictGRU(modelName: string, X_test: number[][][]) {
 },
 
 async trainLSTMGRUHybrid(
-  X_train: number[][][],
-  y_train: number[][],
+  data: number[],
   epochs: number = 10,
   units: number = 50,
   progressCallback?: (epoch: number, logs: any) => void
 ) {
   await this.init();
 
-  const model = tf.sequential();
-  const timesteps = X_train[0].length;
-  const features = X_train[0][0].length;
+  const { X_train, y_train, X_test, y_test, min, range, scaledData, timesteps } = prepareTimeSeriesData(data, 10, 300);
 
+  const model = tf.sequential();
   // LSTM layer extracts long-range temporal patterns, passing a full sequence to GRU
   model.add(tf.layers.lstm({
     units: units,
-    inputShape: [timesteps, features],
+    inputShape: [timesteps, 1],
     returnSequences: true
   }));
   // GRU layer compresses that sequence into a final representation
@@ -202,13 +294,15 @@ async trainLSTMGRUHybrid(
     }
   });
 
+  const { metrics, forecast } = await evaluateAndForecast(model, X_test, y_test, scaledData, min, range, timesteps);
+
   const modelName = 'lstm-gru-hybrid-model-' + Date.now();
   await model.save('indexeddb://' + modelName);
 
   xs.dispose();
   ys.dispose();
 
-  return { modelName };
+  return { modelName, metrics, forecast };
 },
 
 async predictLSTMGRUHybrid(modelName: string, X_test: number[][][]) {
@@ -223,21 +317,20 @@ async predictLSTMGRUHybrid(modelName: string, X_test: number[][][]) {
 },
 
 async trainBiLSTM(
-  X_train: number[][][],
-  y_train: number[][],
+  data: number[],
   epochs: number = 10,
   units: number = 50,
   progressCallback?: (epoch: number, logs: any) => void
 ) {
   await this.init();
 
+  const { X_train, y_train, X_test, y_test, min, range, scaledData, timesteps } = prepareTimeSeriesData(data, 10, 300);
+
   const model = tf.sequential();
-  const timesteps = X_train[0].length;
-  const features = X_train[0][0].length;
 
   model.add(tf.layers.bidirectional({
-    layer: tf.layers.lstm({ units: units, returnSequences: false }),
-    inputShape: [timesteps, features],
+    layer: tf.layers.lstm({ units: units, returnSequences: false }) as any,
+    inputShape: [timesteps, 1],
     mergeMode: 'concat'
   }));
   model.add(tf.layers.dense({ units: 1 }));
@@ -256,13 +349,15 @@ async trainBiLSTM(
     }
   });
 
+  const { metrics, forecast } = await evaluateAndForecast(model, X_test, y_test, scaledData, min, range, timesteps);
+
   const modelName = 'bilstm-model-' + Date.now();
   await model.save('indexeddb://' + modelName);
 
   xs.dispose();
   ys.dispose();
 
-  return { modelName };
+  return { modelName, metrics, forecast };
 },
 
 async predictBiLSTM(modelName: string, X_test: number[][][]) {
@@ -277,16 +372,16 @@ async predictBiLSTM(modelName: string, X_test: number[][][]) {
 },
 
 async trainTransformer(
-  X_train: number[][][],
-  y_train: number[][],
+  data: number[],
   epochs: number = 10,
   headDim: number = 32,
   progressCallback?: (epoch: number, logs: any) => void
 ) {
   await this.init();
 
-  const timesteps = X_train[0].length;
-  const features = X_train[0][0].length;
+  const { X_train, y_train, X_test, y_test, min, range, scaledData, timesteps } = prepareTimeSeriesData(data, 10, 300);
+
+  const features = 1;
   const ffDim = headDim * 2;
 
   const input = tf.input({ shape: [timesteps, features] });
@@ -327,13 +422,15 @@ async trainTransformer(
     }
   });
 
+  const { metrics, forecast } = await evaluateAndForecast(model, X_test, y_test, scaledData, min, range, timesteps);
+
   const modelName = 'transformer-model-' + Date.now();
   await model.save('indexeddb://' + modelName);
 
   xs.dispose();
   ys.dispose();
 
-  return { modelName };
+  return { modelName, metrics, forecast };
 },
 
 async predictTransformer(modelName: string, X_test: number[][][]) {
